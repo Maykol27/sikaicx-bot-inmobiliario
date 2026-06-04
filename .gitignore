@@ -1,0 +1,14 @@
+# Entornos virtuales
+venv/
+env/
+.env
+
+# Credenciales (¡MUY IMPORTANTE NO SUBIR ESTO!)
+credentials.json
+
+# Archivos de caché de Python
+__pycache__/
+*.pyc
+
+# Playwright
+.playwright/
