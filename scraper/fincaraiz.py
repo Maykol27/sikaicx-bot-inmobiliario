@@ -8,7 +8,7 @@ from datetime import datetime
 URL_VENTAS_BOGOTA = "https://www.fincaraiz.com.co/venta/inmuebles/bogota?precio_minimo=600000000"
 URL_ARRIENDOS_BOGOTA = "https://www.fincaraiz.com.co/arriendo/inmuebles/bogota?precio_minimo=3000000"
 
-MAX_PAGINAS = 10  # Número de páginas a scrapear por categoría (Ventas/Arriendos)
+MAX_PAGINAS = 10  # Aprox 210 propiedades
 
 def es_dueno_directo(descripcion, anunciante_nombre=""):
     """

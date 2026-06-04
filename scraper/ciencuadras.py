@@ -6,7 +6,7 @@ from scraper.fincaraiz import es_dueno_directo
 
 URL_VENTAS = "https://www.ciencuadras.com/venta/bogota?price=600000000_20000000000"
 URL_ARRIENDOS = "https://www.ciencuadras.com/arriendo/bogota?price=3000000_50000000"
-MAX_PAGINAS = 5
+MAX_PAGINAS = 5  # Aprox 200 propiedades (C100 muestra 40 por página)
 
 async def extract_ciencuadras(page, base_url, tipo, existing_links):
     leads = []

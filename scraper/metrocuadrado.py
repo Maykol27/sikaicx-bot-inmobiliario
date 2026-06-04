@@ -6,7 +6,7 @@ from scraper.fincaraiz import es_dueno_directo
 
 URL_VENTAS = "https://www.metrocuadrado.com/apartamento-casa/venta/bogota/?precioDesde=600000000"
 URL_ARRIENDOS = "https://www.metrocuadrado.com/apartamento-casa/arriendo/bogota/?precioDesde=3000000"
-MAX_PAGINAS = 5
+MAX_PAGINAS = 22  # Para alcanzar aprox 200 propiedades (M2 muestra pocos por página)
 
 async def extract_metrocuadrado(page, base_url, tipo, existing_links):
     leads = []
