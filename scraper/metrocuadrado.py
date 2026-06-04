@@ -6,10 +6,11 @@ from scraper.fincaraiz import es_dueno_directo
 
 URL_VENTAS = "https://www.metrocuadrado.com/apartamento-casa/venta/bogota/?precioDesde=600000000"
 URL_ARRIENDOS = "https://www.metrocuadrado.com/apartamento-casa/arriendo/bogota/?precioDesde=3000000"
-MAX_PAGINAS = 22  # Para alcanzar aprox 200 propiedades (M2 muestra pocos por página)
+MAX_PAGINAS = 30
 
 async def extract_metrocuadrado(page, base_url, tipo, existing_links):
-    leads = []
+    leads_validos = []
+    leads_descartados = []
     
     for page_num in range(1, MAX_PAGINAS + 1):
         # Metrocuadrado paginación (ej: &pagina=2)
@@ -53,23 +54,28 @@ async def extract_metrocuadrado(page, base_url, tipo, existing_links):
                 precio = f"${precio_match.group(1)}" if precio_match else "Desconocido"
                 
                 # Usamos el texto completo para pasar por nuestra heurística estricta
-                if es_dueno_directo(texto_pagina, texto_pagina[:100]): # Pasamos el inicio como "anunciante"
-                    lead = {
-                        "Fecha": datetime.now().strftime("%Y-%m-%d"),
-                        "Tipo": tipo,
-                        "Precio": precio,
-                        "Ubicación": "Bogotá (M2)",
-                        "Link": full_link,
-                        "Teléfono": "Por implementar",
-                        "Descripción": "Extraído de M2...",
-                        "Estado": ""
-                    }
-                    leads.append(lead)
+                is_directo, razon = es_dueno_directo(texto_pagina, texto_pagina[:100])
+                
+                lead_data = {
+                    "Fecha": datetime.now().strftime("%Y-%m-%d"),
+                    "Tipo": tipo,
+                    "Precio": precio,
+                    "Ubicación": "Bogotá (M2)",
+                    "Link": full_link,
+                    "Teléfono": "Por implementar",
+                    "Descripción": "Extraído de M2...",
+                    "Estado": razon
+                }
+                
+                if is_directo:
+                    leads_validos.append(lead_data)
                     print(f"🎯 [M2] Lead directo encontrado: {full_link}")
+                else:
+                    leads_descartados.append(lead_data)
             except Exception as e:
                 print(f"[M2] Error al visitar link: {e}")
                 
-    return leads
+    return leads_validos, leads_descartados
 
 async def run_metrocuadrado(existing_links):
     from playwright.async_api import async_playwright
@@ -80,11 +86,17 @@ async def run_metrocuadrado(existing_links):
         )
         page = await context.new_page()
         
-        todos = []
+        todos_validos = []
+        todos_descartados = []
         print("Iniciando M2 Ventas...")
-        todos.extend(await extract_metrocuadrado(page, URL_VENTAS, "Venta", existing_links))
+        v, d = await extract_metrocuadrado(page, URL_VENTAS, "Venta", existing_links)
+        todos_validos.extend(v)
+        todos_descartados.extend(d)
+        
         print("Iniciando M2 Arriendos...")
-        todos.extend(await extract_metrocuadrado(page, URL_ARRIENDOS, "Arriendo", existing_links))
+        v, d = await extract_metrocuadrado(page, URL_ARRIENDOS, "Arriendo", existing_links)
+        todos_validos.extend(v)
+        todos_descartados.extend(d)
         
         await browser.close()
-        return todos
+        return todos_validos, todos_descartados

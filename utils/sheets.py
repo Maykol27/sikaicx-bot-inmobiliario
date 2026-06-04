@@ -81,3 +81,44 @@ def append_leads_to_sheet(spreadsheet_name, leads):
     if rows_to_insert:
         sheet.append_rows(rows_to_insert)
         print(f"Se agregaron {len(rows_to_insert)} nuevos leads a {spreadsheet_name}")
+
+def append_discarded_to_sheet(spreadsheet_name, discarded_leads):
+    """
+    Agrega los leads descartados a una pestaña llamada 'Auditoría' para revisión manual.
+    """
+    if not discarded_leads:
+        return
+
+    client = get_sheets_client()
+    try:
+        ss = client.open(spreadsheet_name)
+    except gspread.exceptions.SpreadsheetNotFound:
+        print(f"No se encontró el documento {spreadsheet_name} para auditoría.")
+        return
+
+    try:
+        sheet = ss.worksheet("Auditoría")
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = ss.add_worksheet(title="Auditoría", rows="100", cols="8")
+
+    existing_data = sheet.get_all_values()
+    headers = ["Fecha", "Tipo", "Precio", "Ubicación", "Link", "Razón de Descarte"]
+    
+    if not existing_data:
+        sheet.append_row(headers)
+
+    rows_to_insert = []
+    for lead in discarded_leads:
+        row = [
+            lead.get("Fecha", ""),
+            lead.get("Tipo", ""),
+            lead.get("Precio", ""),
+            lead.get("Ubicación", ""),
+            lead.get("Link", ""),
+            lead.get("Estado", "") # Estado contiene la razón del descarte
+        ]
+        rows_to_insert.append(row)
+        
+    if rows_to_insert:
+        sheet.append_rows(rows_to_insert)
+        print(f"Se registraron {len(rows_to_insert)} descartes en la pestaña Auditoría.")

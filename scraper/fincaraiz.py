@@ -8,7 +8,7 @@ from datetime import datetime
 URL_VENTAS_BOGOTA = "https://www.fincaraiz.com.co/venta/inmuebles/bogota?precio_minimo=600000000"
 URL_ARRIENDOS_BOGOTA = "https://www.fincaraiz.com.co/arriendo/inmuebles/bogota?precio_minimo=3000000"
 
-MAX_PAGINAS = 10  # Aprox 210 propiedades
+MAX_PAGINAS = 25  # Aprox 525 propiedades
 
 def es_dueno_directo(descripcion, anunciante_nombre=""):
     """
@@ -30,18 +30,18 @@ def es_dueno_directo(descripcion, anunciante_nombre=""):
     ]
     for p in palabras_inmobiliaria:
         if p in anunciante:
-            return False
+            return (False, f"Nombre de empresa/inmobiliaria detectado: '{p}'")
             
     # Filtro de Persona Natural:
     # Si el nombre del anunciante tiene números (ej. "Houm 123"), descartar.
     if re.search(r'\d', anunciante):
-        return False
+        return (False, "El nombre del anunciante contiene números")
         
     # Palabras clave fuertes de dueño directo
     palabras_directo = ["venta directa", "sin intermediarios", "motivo viaje", "dueño directo", "trato directo", "directamente", "vendo mi"]
     for p in palabras_directo:
         if p in descripcion:
-            return True
+            return (True, f"Palabra clave de dueño directo: '{p}'")
             
     # Palabras que suelen usar las inmobiliarias en la descripción
     palabras_agencia_desc = [
@@ -51,21 +51,22 @@ def es_dueno_directo(descripcion, anunciante_nombre=""):
     ]
     for p in palabras_agencia_desc:
         if p in descripcion:
-            return False
+            return (False, f"Palabra de agencia en descripción: '{p}'")
             
     # Heurística extra: Las agencias suelen poner descripciones muy largas o usar mayúsculas sostenidas
     # Por ahora, dejemos que retorne False por defecto a menos que tenga "Dueño directo" 
     # o si la descripción es muy corta y personal.
     if len(descripcion) < 150: 
-        return True # Descripciones cortas suelen ser de dueños inexpertos
+        return (True, "Descripción corta típica de persona natural")
         
-    return False # Ante la duda, descartar para entregar solo alta calidad a CGBI.
+    return (False, "Descartado por defecto (No cumple perfil estricto de dueño)")
 
 async def extract_listings_from_pages(page, base_url, tipo, existing_links):
     """
     Navega por múltiples páginas, extrae los listings, ignora duplicados y filtra dueños directos.
     """
-    leads = []
+    leads_validos = []
+    leads_descartados = []
     
     for page_num in range(1, MAX_PAGINAS + 1):
         # Finca Raíz maneja paginación con el parámetro &pagina=N
@@ -113,21 +114,26 @@ async def extract_listings_from_pages(page, base_url, tipo, existing_links):
                 ubicacion_element = tarjeta.select_one("strong.lc-location")
                 ubicacion = ubicacion_element.text.strip() if ubicacion_element else "Bogotá"
                 
-                if es_dueno_directo(descripcion, anunciante):
-                    lead = {
-                        "Fecha": datetime.now().strftime("%Y-%m-%d"),
-                        "Tipo": tipo,
-                        "Precio": precio,
-                        "Ubicación": ubicacion,
-                        "Link": link,
-                        "Teléfono": "Por implementar",
-                        "Descripción": descripcion[:200] + "...", 
-                        "Estado": ""
-                    }
-                    leads.append(lead)
-                    # Añadirlo a la memoria para no duplicarlo si se repite en la página
-                    existing_links.add(link) 
+                is_directo, razon = es_dueno_directo(descripcion, anunciante)
+                
+                lead_data = {
+                    "Fecha": datetime.now().strftime("%Y-%m-%d"),
+                    "Tipo": tipo,
+                    "Precio": precio,
+                    "Ubicación": ubicacion,
+                    "Link": link,
+                    "Teléfono": "Por implementar",
+                    "Descripción": descripcion[:200] + "...", 
+                    "Estado": razon
+                }
+                
+                if is_directo:
+                    leads_validos.append(lead_data)
                     print(f"Lead directo encontrado: {link}")
+                else:
+                    leads_descartados.append(lead_data)
+                
+                existing_links.add(link) 
                     
             except Exception as e:
                 print(f"Error procesando tarjeta: {e}")
@@ -136,7 +142,7 @@ async def extract_listings_from_pages(page, base_url, tipo, existing_links):
         # Pausa entre páginas para no ser bloqueados
         await page.wait_for_timeout(2000)
 
-    return leads
+    return leads_validos, leads_descartados
 
 async def run_scraper(existing_links):
     async with async_playwright() as p:
@@ -146,17 +152,18 @@ async def run_scraper(existing_links):
         )
         page = await context.new_page()
         
-        todos_los_leads = []
+        todos_validos = []
+        todos_descartados = []
         
-        # Scrapear Ventas
         print("Iniciando scraping de Ventas...")
-        leads_ventas = await extract_listings_from_pages(page, URL_VENTAS_BOGOTA, "Venta", existing_links)
-        todos_los_leads.extend(leads_ventas)
+        validos, descartados = await extract_listings_from_pages(page, URL_VENTAS_BOGOTA, "Venta", existing_links)
+        todos_validos.extend(validos)
+        todos_descartados.extend(descartados)
         
-        # Scrapear Arriendos
         print("Iniciando scraping de Arriendos...")
-        leads_arriendos = await extract_listings_from_pages(page, URL_ARRIENDOS_BOGOTA, "Arriendo", existing_links)
-        todos_los_leads.extend(leads_arriendos)
+        validos, descartados = await extract_listings_from_pages(page, URL_ARRIENDOS_BOGOTA, "Arriendo", existing_links)
+        todos_validos.extend(validos)
+        todos_descartados.extend(descartados)
         
         await browser.close()
-        return todos_los_leads
+        return todos_validos, todos_descartados

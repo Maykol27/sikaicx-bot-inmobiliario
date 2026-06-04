@@ -6,10 +6,11 @@ from scraper.fincaraiz import es_dueno_directo
 
 URL_VENTAS = "https://www.ciencuadras.com/venta/bogota?price=600000000_20000000000"
 URL_ARRIENDOS = "https://www.ciencuadras.com/arriendo/bogota?price=3000000_50000000"
-MAX_PAGINAS = 5  # Aprox 200 propiedades (C100 muestra 40 por página)
+MAX_PAGINAS = 15
 
 async def extract_ciencuadras(page, base_url, tipo, existing_links):
-    leads = []
+    leads_validos = []
+    leads_descartados = []
     
     for page_num in range(1, MAX_PAGINAS + 1):
         # Ciencuadras paginación (ej: &page=2)
@@ -50,23 +51,28 @@ async def extract_ciencuadras(page, base_url, tipo, existing_links):
                 precio_match = re.search(r'\$([\d\.]+)', texto_pagina)
                 precio = f"${precio_match.group(1)}" if precio_match else "Desconocido"
                 
-                if es_dueno_directo(texto_pagina, texto_pagina[:100]): 
-                    lead = {
-                        "Fecha": datetime.now().strftime("%Y-%m-%d"),
-                        "Tipo": tipo,
-                        "Precio": precio,
-                        "Ubicación": "Bogotá (C100)",
-                        "Link": full_link,
-                        "Teléfono": "Por implementar",
-                        "Descripción": "Extraído de C100...",
-                        "Estado": ""
-                    }
-                    leads.append(lead)
+                is_directo, razon = es_dueno_directo(texto_pagina, texto_pagina[:100])
+                
+                lead_data = {
+                    "Fecha": datetime.now().strftime("%Y-%m-%d"),
+                    "Tipo": tipo,
+                    "Precio": precio,
+                    "Ubicación": "Bogotá (C100)",
+                    "Link": full_link,
+                    "Teléfono": "Por implementar",
+                    "Descripción": "Extraído de C100...",
+                    "Estado": razon
+                }
+                
+                if is_directo: 
+                    leads_validos.append(lead_data)
                     print(f"🎯 [C100] Lead directo encontrado: {full_link}")
+                else:
+                    leads_descartados.append(lead_data)
             except Exception as e:
                 print(f"[C100] Error al visitar link: {e}")
                 
-    return leads
+    return leads_validos, leads_descartados
 
 async def run_ciencuadras(existing_links):
     from playwright.async_api import async_playwright
@@ -77,11 +83,17 @@ async def run_ciencuadras(existing_links):
         )
         page = await context.new_page()
         
-        todos = []
+        todos_validos = []
+        todos_descartados = []
         print("Iniciando C100 Ventas...")
-        todos.extend(await extract_ciencuadras(page, URL_VENTAS, "Venta", existing_links))
+        v, d = await extract_ciencuadras(page, URL_VENTAS, "Venta", existing_links)
+        todos_validos.extend(v)
+        todos_descartados.extend(d)
+        
         print("Iniciando C100 Arriendos...")
-        todos.extend(await extract_ciencuadras(page, URL_ARRIENDOS, "Arriendo", existing_links))
+        v, d = await extract_ciencuadras(page, URL_ARRIENDOS, "Arriendo", existing_links)
+        todos_validos.extend(v)
+        todos_descartados.extend(d)
         
         await browser.close()
-        return todos
+        return todos_validos, todos_descartados
