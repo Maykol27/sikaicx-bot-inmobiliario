@@ -58,11 +58,11 @@ def main():
     else:
         print("No se agregaron leads válidos hoy.")
         
-    # 3. Guardar en Auditoría (Limitar a los primeros 50 para no desbordar el Sheets si hay miles)
+    # 3. Guardar en Auditoría 
     if descartados_totales:
         try:
-            # Guardamos solo una muestra representativa (ej. primeros 100) para la auditoría
-            append_discarded_to_sheet(nombre_hoja, descartados_totales[:100])
+            # Ampliamos la muestra a 1000 para que se vean todos los portales
+            append_discarded_to_sheet(nombre_hoja, descartados_totales[:1000])
         except Exception as e:
             print(f"Error al guardar descartados: {e}")
 
