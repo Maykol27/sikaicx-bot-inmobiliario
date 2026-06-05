@@ -2,7 +2,7 @@ import asyncio
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
-from scraper.fincaraiz import es_dueno_directo
+from scraper.fincaraiz import es_dueno_directo, cumple_precio_minimo
 
 URL_VENTAS = "https://www.metrocuadrado.com/apartamento-casa/venta/bogota/?precioDesde=600000000"
 URL_ARRIENDOS = "https://www.metrocuadrado.com/apartamento-casa/arriendo/bogota/?precioDesde=3000000"
@@ -52,6 +52,10 @@ async def extract_metrocuadrado(page, base_url, tipo, existing_links):
                 # Extraer precio con regex básico
                 precio_match = re.search(r'\$([\d\.]+)', texto_pagina)
                 precio = f"${precio_match.group(1)}" if precio_match else "Desconocido"
+                
+                # Descartar inmediatamente si no cumple el precio
+                if not cumple_precio_minimo(precio, tipo):
+                    continue
                 
                 # Usamos el texto completo para pasar por nuestra heurística estricta
                 is_directo, razon = es_dueno_directo(texto_pagina, texto_pagina[:100])

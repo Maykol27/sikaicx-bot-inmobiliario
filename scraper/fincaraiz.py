@@ -10,6 +10,19 @@ URL_ARRIENDOS_BOGOTA = "https://www.fincaraiz.com.co/arriendo/inmuebles/bogota?p
 
 MAX_PAGINAS = 25  # Aprox 525 propiedades
 
+def cumple_precio_minimo(precio_str, tipo):
+    if not precio_str or precio_str == "Desconocido":
+        return True
+    numeros = re.sub(r'[^\d]', '', precio_str)
+    if not numeros:
+        return True
+    p = int(numeros)
+    if tipo == "Venta" and p < 600000000:
+        return False
+    if tipo == "Arriendo" and p < 3000000:
+        return False
+    return True
+
 def es_dueno_directo(descripcion, anunciante_nombre=""):
     """
     Usa heurísticas estrictas para determinar si la publicación es de un dueño directo.
@@ -110,6 +123,10 @@ async def extract_listings_from_pages(page, base_url, tipo, existing_links):
                 
                 precio_element = tarjeta.select_one("p.main-price")
                 precio = precio_element.text.strip() if precio_element else "Desconocido"
+                
+                # Descartar inmediatamente si no cumple el precio (ej. propiedades promocionadas o basura)
+                if not cumple_precio_minimo(precio, tipo):
+                    continue
                 
                 ubicacion_element = tarjeta.select_one("strong.lc-location")
                 ubicacion = ubicacion_element.text.strip() if ubicacion_element else "Bogotá"
