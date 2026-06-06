@@ -42,7 +42,7 @@ def es_dueno_directo(descripcion, anunciante_nombre=""):
         "proyecto", "constructores", "edificadora", "inmueble"
     ]
     for p in palabras_inmobiliaria:
-        if p in anunciante:
+        if re.search(r'\b' + re.escape(p) + r'\b', anunciante):
             return (False, f"Nombre de empresa/inmobiliaria detectado: '{p}'")
             
     # Filtro de Persona Natural:

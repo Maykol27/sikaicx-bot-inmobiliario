@@ -1,20 +1,23 @@
 import asyncio
+from scraper.fincaraiz import extract_listings_from_pages, URL_VENTAS_BOGOTA
 from playwright.async_api import async_playwright
 
-async def main():
+async def debug():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-        )
-        print("Cargando Finca Raiz...")
-        await page.goto("https://www.fincaraiz.com.co/venta/inmuebles/bogota?precio_minimo=600000000", wait_until="networkidle")
-        await page.wait_for_timeout(5000)
-        html = await page.content()
-        with open("fincaraiz_debug.html", "w", encoding="utf-8") as f:
-            f.write(html)
-        print("HTML guardado en fincaraiz_debug.html")
+        context = await browser.new_context()
+        page = await context.new_page()
+        print("Testing Finca Raiz Venta...")
+        
+        # Override max paginas for fast test
+        import scraper.fincaraiz
+        scraper.fincaraiz.MAX_PAGINAS = 1
+        
+        v, d = await extract_listings_from_pages(page, URL_VENTAS_BOGOTA, "Venta", set())
+        print(f"Validos: {len(v)}")
+        print(f"Descartados: {len(d)}")
+        if d:
+            print(f"Sample descartado: {d[0]}")
         await browser.close()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(debug())
