@@ -2,6 +2,7 @@ import asyncio
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
+from playwright_stealth import Stealth
 from scraper.fincaraiz import es_dueno_directo, cumple_precio_minimo
 
 URL_VENTAS = "https://www.ciencuadras.com/venta/bogota?price=600000000_20000000000"
@@ -42,10 +43,15 @@ async def extract_ciencuadras(page, base_url, tipo, existing_links):
             
             try:
                 nuevo_contexto = await page.context.new_page()
-                await nuevo_contexto.goto(full_link, wait_until="domcontentloaded", timeout=15000)
+                await Stealth().apply_stealth_async(nuevo_contexto)
+                await nuevo_contexto.goto(full_link, wait_until="domcontentloaded", timeout=60000)
                 await nuevo_contexto.wait_for_timeout(2000)
                 
-                texto_pagina = await nuevo_contexto.evaluate("document.body.innerText")
+                texto_pagina = await nuevo_contexto.evaluate('''() => {
+                    let desc = document.querySelector('div[class*="description"], p[class*="description"], div[class*="desc"]');
+                    if (desc) return desc.innerText;
+                    return document.body.innerText.replace(/código/gi, '').replace(/cod:/gi, '').replace(/inmueble/gi, '');
+                }''')
                 await nuevo_contexto.close()
                 
                 precio_match = re.search(r'\$([\d\.]+)', texto_pagina)
@@ -86,6 +92,7 @@ async def run_ciencuadras(existing_links):
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
         )
         page = await context.new_page()
+        await Stealth().apply_stealth_async(page)
         
         todos_validos = []
         todos_descartados = []

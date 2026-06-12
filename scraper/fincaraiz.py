@@ -3,6 +3,7 @@ from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
+from playwright_stealth import Stealth
 
 # URLs base de búsqueda (Primera página)
 URL_VENTAS_BOGOTA = "https://www.fincaraiz.com.co/venta/inmuebles/bogota?precio_minimo=600000000"
@@ -168,6 +169,7 @@ async def run_scraper(existing_links):
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
         )
         page = await context.new_page()
+        await Stealth().apply_stealth_async(page)
         
         todos_validos = []
         todos_descartados = []
